@@ -39,7 +39,7 @@ if not index_loaded:
 
     sentences = []
     file_count = 0
-    for e in os.scandir("prepared_data"):
+    for e in os.scandir("data"):
         if e.is_file():
             print(f"Loading sentences from {e.path}")
             with open(e.path, "r") as f:
