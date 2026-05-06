@@ -9,6 +9,9 @@ import os
 # IMPORTANT: must be set before importing torch/faiss to avoid OpenMP clashes on macOS
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+# Prevent MPS from reserving more than the high watermark of available memory.
+# 0.0 disables the upper limit (use system default); set to e.g. "0.7" to cap at 70% of unified memory.
+os.environ.setdefault("PYTORCH_MPS_HIGH_WATERMARK_RATIO", "0.0")
 
 import pickle
 import argparse
@@ -21,7 +24,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import faiss
 
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-LLM_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"  # ~3GB, works well on Mac mini
+LLM_MODEL = "Qwen/Qwen2.5-3B-Instruct"  # ~3GB, works well on Mac mini
 
 SYSTEM_PROMPT = (
     "You are a knowledgeable assistant that helps users build computers. "
@@ -32,6 +35,8 @@ SYSTEM_PROMPT = (
 
 
 def get_device() -> str:
+    """Pick the best available device. MPS for Apple Silicon, else CPU.
+    Allow override via FORCE_CPU=1 env var if MPS causes crashes."""
     if os.environ.get("FORCE_CPU") == "1":
         return "cpu"
     if torch.backends.mps.is_available():
@@ -91,20 +96,38 @@ def generate_answer(messages, tokenizer, model, device: str, max_new_tokens: int
     prompt = tokenizer.apply_chat_template(
         messages, tokenize=False, add_generation_prompt=True
     )
-    inputs = tokenizer(prompt, return_tensors="pt").to(device)
+    # Cap input length to keep KV cache memory bounded
+    inputs = tokenizer(
+        prompt,
+        return_tensors="pt",
+        truncation=True,
+        max_length=2048,
+    ).to(device)
 
     with torch.no_grad():
         output_ids = model.generate(
             **inputs,
             max_new_tokens=max_new_tokens,
-            do_sample=True,  # deterministic answers for factual Q&A
-            temperature=0.1,
+            do_sample=True,
+            temperature=0.2,
             pad_token_id=tokenizer.eos_token_id,
+            use_cache=True,
+            repetition_penalty=1.15,  # discourages the model from looping on repeated phrases
+            no_repeat_ngram_size=4,   # hard block on repeating any 4-token sequence
         )
 
     # Slice off the prompt tokens so we only decode the new generation
     generated = output_ids[0][inputs["input_ids"].shape[1]:]
-    return tokenizer.decode(generated, skip_special_tokens=True).strip()
+    text = tokenizer.decode(generated, skip_special_tokens=True).strip()
+
+    # Free intermediate tensors so memory doesn't accumulate across turns
+    del inputs, output_ids, generated
+    if device == "mps":
+        torch.mps.empty_cache()
+    elif device == "cuda":
+        torch.cuda.empty_cache()
+
+    return text
 
 
 def main():
@@ -117,11 +140,12 @@ def main():
     parser.add_argument(
         "--top-k",
         type=int,
-        default=5,
-        help="Number of facts to retrieve per query (default: 5)",
+        default=8,
+        help="Number of facts to retrieve per query (default: 8)",
     )
     parser.add_argument(
         "--show-context",
+        default=True,
         action="store_true",
         help="Print the retrieved facts before each answer",
     )
@@ -138,10 +162,21 @@ def main():
 
     print(f"Loading LLM: {LLM_MODEL} (this may take a moment on first run)")
     tokenizer = AutoTokenizer.from_pretrained(LLM_MODEL)
-    dtype = torch.float16 if device == "cuda" else torch.float32
+
+    # Memory/correctness tradeoff:
+    # - fp16 on CUDA: fast and stable
+    # - bf16 on MPS: was unstable for Qwen (caused repetition loops / garbage output)
+    # - fp32 on MPS: stable but ~6GB for a 1.5B model. Acceptable on Mac mini.
+    # - fp32 on CPU: stable, slow but works.
+    if device == "cuda":
+        dtype = torch.float16
+    else:
+        dtype = torch.float32
+
     model = AutoModelForCausalLM.from_pretrained(
         LLM_MODEL,
         torch_dtype=dtype,
+        low_cpu_mem_usage=True,
     ).to(device)
     model.eval()
 
