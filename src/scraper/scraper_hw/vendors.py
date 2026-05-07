@@ -10,6 +10,11 @@ class VendorConfig:
     include_keywords: tuple[str, ...]
     exclude_keywords: tuple[str, ...] = ()
     strip_locale_prefix: bool = True
+    fallback_link_seeds: tuple[str, ...] = ()
+    fallback_link_max_depth: int = 1
+    minimum_path_segments: int = 0
+    search_queries: tuple[str, ...] = ()
+    search_result_pages: int = 1
 
 
 VENDORS: dict[str, VendorConfig] = {
@@ -57,6 +62,28 @@ VENDORS: dict[str, VendorConfig] = {
             "/graphics-card/index.asp",
             "/networking/index.asp",
         ),
+        fallback_link_seeds=(
+            "https://www.asrock.com/",
+            "https://www.asrock.com/mb/index.asp",
+            "https://www.asrock.com/graphics-card/index.asp",
+            "https://www.asrock.com/monitor/index.asp",
+            "https://www.asrock.com/nettop/index.asp",
+            "https://www.asrock.com/CPU-Coolers/index.asp",
+            "https://www.asrock.com/Power-Supply/index.asp",
+        ),
+        fallback_link_max_depth=2,
+        minimum_path_segments=0,
+        search_queries=(
+            "site:asrock.com/mb/ index.asp",
+            "site:asrock.com/motherboard/ index.asp",
+            "site:asrock.com/graphics-card/ index.asp",
+            "site:asrock.com/graphic-card/ index.asp",
+            "site:asrock.com/monitor/ index.asp",
+            "site:asrock.com/networking/ index.asp",
+            "site:asrock.com/nettop/ index.asp",
+            "site:pg.asrock.com/mb/ index.asp",
+        ),
+        search_result_pages=2,
     ),
     "msi": VendorConfig(
         name="msi",
@@ -78,7 +105,10 @@ VENDORS: dict[str, VendorConfig] = {
     ),
     "gigabyte": VendorConfig(
         name="gigabyte",
-        sitemaps=("https://www.gigabyte.com/Sitemap.xml",),
+        sitemaps=(
+            "https://www.gigabyte.com/Sitemap.xml",
+            "https://www.gigabyte.com/sitemap.xml",
+        ),
         include_keywords=(
             "/Motherboard/",
             "/Graphics-Card/",
@@ -91,6 +121,15 @@ VENDORS: dict[str, VendorConfig] = {
             "/News/",
             "/Enterprise/",
         ),
+        fallback_link_seeds=(
+            "https://www.gigabyte.com/",
+            "https://www.gigabyte.com/Motherboard",
+            "https://www.gigabyte.com/Graphics-Card",
+            "https://www.gigabyte.com/Laptop",
+            "https://www.gigabyte.com/Monitor",
+            "https://www.gigabyte.com/Mini-PCBarebone",
+        ),
+        fallback_link_max_depth=2,
     ),
     "biostar": VendorConfig(
         name="biostar",

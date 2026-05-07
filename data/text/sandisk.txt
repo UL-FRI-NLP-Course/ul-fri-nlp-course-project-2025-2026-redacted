@@ -1,0 +1,24 @@
+Vendor: sandisk | Name: sandisk extreme ssd afrofuturism edition | Model: SDSSDE61-1T00-GBH | Category: Solid State (SSD) | URL: https://www.sandisk.com/products/ssd/external-ssd/sandisk-extreme-ssd-afrofuturism-edition | Specs: Capacity: 1TB; Connector: USB-C; Sequential Read Performance: 1050MB/s; Sequential Write Performance: 1000MB/s; Interface: USB 3.2 Gen 2; Warranty: 5-Year Limited Warranty; Dimensions (L x W x H): 3.96" x 2.06" x 0.37"; Weight: 52gms; Model Number: SDSSDE61-1T00-GBH; Operating Temperature: 0°C to 45°C; Non-Operating Temperature: -20°C to 65°C
+Vendor: sandisk | Name: sandisk extreme ssd afrofuturism edition | Model: SDSSDE61-1T00-GBH | Category: Solid State (SSD) | URL: https://www.sandisk.com/products/ssd/external-ssd/sandisk-extreme-ssd-afrofuturism-edition?sku=SDSSDE61-1T00-GBH | Specs: Capacity: 1TB; Connector: USB-C; Sequential Read Performance: 1050MB/s; Sequential Write Performance: 1000MB/s; Interface: USB 3.2 Gen 2; Warranty: 5-Year Limited Warranty; Dimensions (L x W x H): 3.96" x 2.06" x 0.37"; Weight: 52gms; Model Number: SDSSDE61-1T00-GBH; Operating Temperature: 0°C to 45°C; Non-Operating Temperature: -20°C to 65°C
+Vendor: sandisk | Name: rewritePageUrl(productReferenceObject.pagePath) | Category: products | URL: https://www.sandisk.com/products/ssd/external-ssd/rewritePageUrl(productReferenceObject.pagePath)
+Vendor: sandisk | Name: SanDisk SSDs, Memory Cards, and Flash Drives for Your Digital Life | Sandisk | Category: app | URL: https://support-en.sandisk.com/app/products/downloads/softwaredownloads
+Vendor: sandisk | Name: gotoCommerceURL( | Category: products | URL: https://www.sandisk.com/products/ssd/external-ssd/gotoCommerceURL(
+Vendor: sandisk | Name: rewritePageURL(bogoItems.productInfo.pagePath) | Category: products | URL: https://www.sandisk.com/products/ssd/external-ssd/rewritePageURL(bogoItems.productInfo.pagePath)
+Vendor: sandisk | Name: promotion.info.offerTextCtaLink | Category: products | URL: https://www.sandisk.com/products/ssd/external-ssd/promotion.info.offerTextCtaLink
+Vendor: sandisk | Name: rewritePageURL(productInfo[mainSkuId].pagePath) | Category: products | URL: https://www.sandisk.com/products/ssd/external-ssd/rewritePageURL(productInfo[mainSkuId].pagePath)
+Vendor: sandisk | Name: rewritePageURL(productInfo[item.code].pagePath) | Category: products | URL: https://www.sandisk.com/products/ssd/external-ssd/rewritePageURL(productInfo[item.code].pagePath)
+Vendor: sandisk | Name: rewritePageURL(item.pagePath) | Category: products | URL: https://www.sandisk.com/products/ssd/external-ssd/rewritePageURL(item.pagePath)
+Vendor: sandisk | Name: f.pagePath | Category: products | URL: https://www.sandisk.com/products/ssd/external-ssd/f.pagePath
+Vendor: sandisk | Name: c.url | Category: products | URL: https://www.sandisk.com/products/ssd/external-ssd/c.url
+Vendor: sandisk | Name: p.url | Category: products | URL: https://www.sandisk.com/products/ssd/external-ssd/p.url
+Vendor: sandisk | Name: e.url | Category: products | URL: https://www.sandisk.com/products/ssd/external-ssd/e.url
+Vendor: sandisk | Name: s.url | Category: products | URL: https://www.sandisk.com/products/ssd/external-ssd/s.url
+Vendor: sandisk | Name: rewritePageURL(customPromotionInfo.cta) | Category: products | URL: https://www.sandisk.com/products/ssd/external-ssd/rewritePageURL(customPromotionInfo.cta)
+Vendor: sandisk | Name: rewritePageURL(customPromotionInfoItem.cta) | Category: products | URL: https://www.sandisk.com/products/ssd/external-ssd/rewritePageURL(customPromotionInfoItem.cta)
+Vendor: sandisk | Name: productsData.url | Category: products | URL: https://www.sandisk.com/products/ssd/external-ssd/productsData.url
+Vendor: sandisk | Name: getComparePath() | Category: products | URL: https://www.sandisk.com/products/ssd/external-ssd/getComparePath()
+Vendor: sandisk | Name: baseObj.pagePath+ | Category: products | URL: https://www.sandisk.com/products/ssd/external-ssd/baseObj.pagePath+
+Vendor: sandisk | Name: redirectPath | Category: products | URL: https://www.sandisk.com/products/ssd/external-ssd/redirectPath
+Vendor: sandisk | Name: skuObj.pagePath+ | Category: products | URL: https://www.sandisk.com/products/ssd/external-ssd/skuObj.pagePath+
+Vendor: sandisk | Name: compareCount < 2 | Category: products | URL: https://www.sandisk.com/products/ssd/external-ssd/compareCount < 2
+Vendor: sandisk | Name: e,rd delete cookie(rd storeCookieName)):o&&(window.location.href=o,rd delete cookie(rd oneStudioCookieName))}window.addEventListener( | Category: products | URL: https://www.sandisk.com/products/ssd/external-ssd/e,rd_delete_cookie(rd_storeCookieName)):o&&(window.location.href=o,rd_delete_cookie(rd_oneStudioCookieName))}window.addEventListener(
