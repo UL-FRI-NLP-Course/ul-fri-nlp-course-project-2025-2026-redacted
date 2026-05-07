@@ -3,14 +3,18 @@ from __future__ import annotations
 import re
 import sys
 import time
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 from urllib.parse import urljoin
 from xml.etree.ElementTree import ParseError
 
 import requests
 from bs4 import BeautifulSoup
 
-from scraper_hw.crawler import discover_product_urls
+from scraper_hw.crawler import (
+    discover_product_urls,
+    discover_product_urls_from_links,
+    discover_product_urls_via_search,
+)
 from scraper_hw.http import HttpClient
 from scraper_hw.models import ProductRecord
 from scraper_hw.parsers import parse_product_html
@@ -73,6 +77,24 @@ def _extract_biostar_spec_urls(page_url: str, html: str) -> list[str]:
     return _dedupe_preserve_order(spec_urls)
 
 
+def _build_url_only_record(vendor: str, url: str) -> ProductRecord:
+    record = ProductRecord(vendor=vendor, url=url)
+    segments = [unquote(segment).strip() for segment in urlparse(url).path.split("/") if segment]
+    if segments:
+        record.category = segments[0].replace("-", " ").replace("_", " ")
+        for segment in reversed(segments):
+            lowered = segment.lower()
+            if lowered in {"index.asp", "index.us.asp", "index.html", "index.htm"}:
+                continue
+            if lowered in {"mb", "motherboard", "graphics-card", "graphic-card", "monitor", "networking"}:
+                continue
+            value = segment.replace("-", " ").replace("_", " ").strip()
+            if value:
+                record.name = value
+                break
+    return record
+
+
 def scrape_vendor(
     config: VendorConfig,
     *,
@@ -92,12 +114,43 @@ def scrape_vendor(
                 exclude_keywords=config.exclude_keywords,
                 max_urls=limit,
                 strip_locale_prefix=config.strip_locale_prefix,
+                minimum_path_segments=config.minimum_path_segments,
             )
             all_urls.extend(urls)
         except (requests.RequestException, ParseError, ValueError) as exc:
             print(f"[warn] could not parse sitemap {sitemap}: {exc}", file=sys.stderr)
 
     unique_urls = list(dict.fromkeys(all_urls))
+    if config.fallback_link_seeds:
+        remaining_limit = None if limit is None else max(0, limit - len(unique_urls))
+        if remaining_limit is None or remaining_limit > 0:
+            fallback_urls = discover_product_urls_from_links(
+                client,
+                config.fallback_link_seeds,
+                config.include_keywords,
+                exclude_keywords=config.exclude_keywords,
+                max_urls=remaining_limit,
+                strip_locale_prefix=config.strip_locale_prefix,
+                max_depth=config.fallback_link_max_depth,
+                minimum_path_segments=config.minimum_path_segments,
+            )
+            unique_urls = list(dict.fromkeys(unique_urls + fallback_urls))
+
+    if config.search_queries:
+        remaining_limit = None if limit is None else max(0, limit - len(unique_urls))
+        if remaining_limit is None or remaining_limit > 0:
+            search_urls = discover_product_urls_via_search(
+                client,
+                config.search_queries,
+                config.include_keywords,
+                exclude_keywords=config.exclude_keywords,
+                max_urls=remaining_limit,
+                strip_locale_prefix=config.strip_locale_prefix,
+                minimum_path_segments=config.minimum_path_segments,
+                pages_per_query=config.search_result_pages,
+            )
+            unique_urls = list(dict.fromkeys(unique_urls + search_urls))
+
     if limit is not None:
         unique_urls = unique_urls[:limit]
 
@@ -157,7 +210,8 @@ def scrape_vendor(
         if combined_product is not None:
             products.append(combined_product)
         else:
-            print(f"[warn] failed to fetch product content from {url}", file=sys.stderr)
+            products.append(_build_url_only_record(config.name, url))
+            print(f"[warn] failed to parse product content from {url}; wrote URL-only record", file=sys.stderr)
 
         if idx < len(unique_urls) - 1 and delay_seconds > 0:
             time.sleep(delay_seconds)
