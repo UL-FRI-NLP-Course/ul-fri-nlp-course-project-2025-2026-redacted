@@ -7,6 +7,8 @@
       <sourceFolder url="file://$MODULE_DIR$/src/steamdb" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
       <excludeFolder url="file://$MODULE_DIR$/src/scraper/.venv" />
+      <excludeFolder url="file://$MODULE_DIR$/containers" />
+      <excludeFolder url="file://$MODULE_DIR$/data" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.14 (Redacted)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
