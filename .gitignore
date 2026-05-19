@@ -303,5 +303,4 @@ http-client.private.env.json
 
 /rag_index_bak/
 /rag_index/
-/data/
 /containers/
