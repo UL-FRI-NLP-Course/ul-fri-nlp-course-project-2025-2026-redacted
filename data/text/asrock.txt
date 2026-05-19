@@ -1,1 +1,0 @@
-Vendor: asrock | Name: index.asp | Category: monitor | URL: https://www.asrock.com/monitor/index.asp

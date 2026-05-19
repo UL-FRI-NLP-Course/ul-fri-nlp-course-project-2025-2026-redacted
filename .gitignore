@@ -301,5 +301,7 @@ http-client.private.env.json
 
 # End Idea gitignore
 
-# YouTube cookies (sensitive — never commit)
-**/cookies.txt
+/rag_index_bak/
+/rag_index/
+/data/
+/containers/
