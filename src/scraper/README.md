@@ -1,11 +1,11 @@
-# Hardware Scraper
+# MedlinePlus Scraper
 
-A simple, extensible Python scraper for hardware vendors (ASUS, ASRock, MSI, Gigabyte, BIOSTAR, EVGA, Zotac, AMD, Intel, Cooler Master, Corsair, Phanteks, Fractal Design, Mushkin, SilverStone, Seasonic, Lian Li, Thermalright, Noctua, XFX, Sapphire, Sparkle, Maxsun, PowerColor/PowerColour, Gunnir, Kingston, SanDisk, Acer) that:
+A Python scraper that reads the [MedlinePlus health topics XML feed](https://medlineplus.gov/xml.html) and produces RAG-ready JSONL chunks by:
 
-- discovers product pages from sitemap XML files, with link-traversal/search fallbacks for vendors where sitemaps are sparse or missing
-- tries vendor-specific spec endpoints (ASUS `/techspec/`, Gigabyte `/sp`, MSI `/Specification`, ASRock `/index.us.asp#Specification`)
-- extracts model/name/specs from JSON-LD, tables, dl lists, and spec-like row/list blocks
-- writes normalized output to JSONL or JSON
+- parsing every English health topic from the XML (Spanish and other languages are excluded)
+- scraping the full text from each linked external resource (NIH, CDC, Mayo Clinic, etc.)
+- splitting content into overlapping chunks (~1500 chars with ~150-char overlap at sentence boundaries)
+- writing one chunk per line to JSONL, each carrying full topic metadata for retrieval context
 
 ## Install
 
@@ -18,68 +18,79 @@ pip install -e .
 
 ## Usage
 
-List supported vendors:
+Full scrape — all English topics, all linked sites:
 
 ```bash
-hw-scraper vendors
+med-scraper scrape
 ```
 
-Scrape one vendor:
+Quick test — 10 topics, summaries only (no outbound HTTP):
 
 ```bash
-hw-scraper scrape --vendor asus --limit 50 --output ../../data/asus.jsonl --output-format jsonl
+med-scraper scrape --limit 10 --no-site-scraping
 ```
 
-Scrape all vendors:
+Only include Overview and Diagnosis pages from linked sites:
 
 ```bash
-hw-scraper scrape --vendor all --limit 100 --delay 0.7 --output ../../data/all.json
+med-scraper scrape --categories "Overview,Diagnosis and Tests"
 ```
 
-Scrape all vendors in parallel (writes one `../../data/<vendor>.json` per vendor):
+Use a locally downloaded XML file instead of fetching from the web:
 
 ```bash
-bash runall.sh
+med-scraper scrape --xml-file mplus_topics_2026-05-16.xml
 ```
+
+Custom output path:
+
+```bash
+med-scraper scrape --output ../../data/chunks.jsonl --delay 0.7
+```
+
+All options:
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `--xml-url` | MedlinePlus XML URL | URL of the XML topic feed |
+| `--xml-file` | — | Local XML file (overrides `--xml-url`) |
+| `--limit` | — | Max topics to process |
+| `--max-sites` | — | Max linked sites to scrape per topic |
+| `--no-summaries` | false | Skip MedlinePlus summary chunks |
+| `--no-site-scraping` | false | Skip scraping linked sites entirely |
+| `--language` | `English` | Topic language filter |
+| `--categories` | — | Comma-separated site categories to include |
+| `--delay` | `0.5` | Seconds between HTTP requests |
+| `--timeout` | `20.0` | HTTP timeout in seconds |
+| `--output` | `output/chunks.jsonl` | Output file path |
 
 ## Output schema
 
-Each record has:
+Each line of the JSONL file is one chunk:
 
-- `vendor`
-- `url`
-- `name`
-- `model`
-- `category`
-- `specs` (key/value dictionary)
-
-## YouTube transcript scraper (`scraper_yt`)
-
-Fetches transcripts for all videos in the playlists listed in `scraper_yt/input.txt` and saves them as text files.
-
-Edit `input.txt` to add playlist URLs (one per line, `#` for comments), then run:
-
-```bash
-cd scraper_yt
-python yt_scraper.py
+```json
+{
+  "chunk_id": "a3f1c2e4b8d09f1e",
+  "topic_id": "8002",
+  "topic_title": "Diabetes",
+  "topic_url": "https://medlineplus.gov/diabetes.html",
+  "groups": ["Metabolic Problems"],
+  "also_called": ["Diabetes Mellitus"],
+  "mesh_headings": ["Diabetes Mellitus"],
+  "source_url": "https://www.niddk.nih.gov/health-information/diabetes",
+  "source_title": "Diabetes | NIDDK",
+  "organization": "National Institute of Diabetes and Digestive and Kidney Diseases",
+  "information_categories": ["Overview"],
+  "text": "Diabetes is a disease that occurs when your blood glucose...",
+  "chunk_index": 0,
+  "total_chunks": 4
+}
 ```
 
-Output is written to `scraper_yt/output/<creator>/<video title>.txt`.
-
-## LTT Labs scraper (`scraper_lttlabs`)
-
-Scrapes all products from lttlabs.com via its internal search API and writes JSONL to stdout.
-
-```bash
-cd scraper_lttlabs
-python lttlabs_scraper.py > ../../../data/lttlabs.jsonl
-```
-
-Progress (`Fetched X/Y`) is printed to stderr and won't pollute the output file.
+`text` is the field to embed. All other fields are metadata for filtering and context injection at retrieval time.
 
 ## Notes
 
-- Website structures change often, so keep `scraper_hw/vendors.py` include keywords updated.
-- Scrape responsibly (rate limits, robots.txt, and site terms).
-- Locale prefixes in sitemap URLs (for example `/africa-fr/`) are stripped so output URLs stay locale-free.
-- If a product page is blocked/unparseable, the scraper now emits a URL-only record instead of dropping it.
+- The XML URL is dated (e.g. `mplus_topics_2026-05-16.xml`). Update `--xml-url` or `_DEFAULT_XML_URL` in `pipeline.py` when a newer file is published.
+- Some external sites block scrapers (403, 429). These are silently skipped with a `[warn]` message.
+- Scrape responsibly — use `--delay` and respect site terms of service.

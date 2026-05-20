@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hardware-scraper"
+name = "medlineplus-scraper"
 version = "0.1.0"
-description = "Simple, extensible hardware component scraper for vendor websites."
+description = "MedlinePlus health topic scraper that produces RAG-ready JSONL chunks."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -19,11 +19,11 @@ dependencies = [
 ]
 
 [project.scripts]
-hw-scraper = "scraper_hw.cli:app"
+med-scraper = "scraper_med.cli:app"
 
 [tool.setuptools]
 package-dir = {"" = "."}
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["scraper_hw*"]
+include = ["scraper_med*"]
