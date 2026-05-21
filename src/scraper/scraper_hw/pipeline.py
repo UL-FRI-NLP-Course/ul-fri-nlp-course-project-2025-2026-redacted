@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import sys
 import time
+from contextlib import nullcontext
 from urllib.parse import unquote, urlparse
 from urllib.parse import urljoin
 from xml.etree.ElementTree import ParseError
@@ -15,7 +16,7 @@ from scraper_hw.crawler import (
     discover_product_urls_from_links,
     discover_product_urls_via_search,
 )
-from scraper_hw.http import HttpClient
+from scraper_hw.http import HttpClient, PlaywrightClient
 from scraper_hw.models import ProductRecord
 from scraper_hw.parsers import parse_product_html
 from scraper_hw.vendors import VendorConfig
@@ -65,6 +66,12 @@ def _needs_fallback_spec_fetch(record: ProductRecord | None) -> bool:
     return len(record.specs) < 4
 
 
+def _needs_playwright_fallback(record: ProductRecord | None) -> bool:
+    if record is None:
+        return True
+    return not record.specs
+
+
 def _extract_biostar_spec_urls(page_url: str, html: str) -> list[str]:
     soup = BeautifulSoup(html, "lxml")
     spec_urls: list[str] = []
@@ -103,6 +110,7 @@ def scrape_vendor(
     timeout: float = 20.0,
 ) -> list[ProductRecord]:
     client = HttpClient(timeout=timeout)
+    pw_client: PlaywrightClient | None = None
     all_urls: list[str] = []
 
     for sitemap in config.sitemaps:
@@ -155,65 +163,98 @@ def scrape_vendor(
         unique_urls = unique_urls[:limit]
 
     products: list[ProductRecord] = []
-    for idx, url in enumerate(unique_urls):
-        parsed_url = urlparse(url)
-        if config.name == "fractal-design" and parsed_url.path.rstrip("/") == "/products":
-            continue
+    pw_ctx = PlaywrightClient(timeout=max(timeout, 30.0)) if config.use_playwright else None
+    with (pw_ctx if pw_ctx is not None else nullcontext()):
+        # Playwright link-discovery fallback: used when the site blocks plain HTTP (e.g. Cloudflare).
+        if pw_ctx is not None and not unique_urls and config.fallback_link_seeds:
+            remaining_limit = limit
+            pw_urls = discover_product_urls_from_links(
+                pw_ctx,
+                config.fallback_link_seeds,
+                config.include_keywords,
+                exclude_keywords=config.exclude_keywords,
+                max_urls=remaining_limit,
+                strip_locale_prefix=config.strip_locale_prefix,
+                max_depth=config.fallback_link_max_depth,
+                minimum_path_segments=config.minimum_path_segments,
+            )
+            unique_urls = list(dict.fromkeys(pw_urls))
+            if limit is not None:
+                unique_urls = unique_urls[:limit]
 
-        combined_product: ProductRecord | None = None
-        candidate_urls = _build_spec_candidate_urls(config.name, url)
-        if not candidate_urls:
-            continue
-
-        # Fetch canonical URL first; try extra spec endpoints only when specs are sparse.
-        primary_url = candidate_urls[0]
-        try:
-            primary_response = client.get(primary_url)
-            parsed = parse_product_html(config.name, primary_url, primary_response.text)
-            if parsed is not None:
-                combined_product = parsed
-                combined_product.url = url
-
-            if config.name == "biostar" and "introduction.php" in primary_url.lower() and primary_response is not None:
-                for spec_url in _extract_biostar_spec_urls(primary_url, primary_response.text):
-                    try:
-                        spec_response = client.get(spec_url, timeout=min(timeout, 12.0), retries=0)
-                    except requests.RequestException:
-                        continue
-                    spec_record = parse_product_html(config.name, spec_url, spec_response.text)
-                    if spec_record is None:
-                        continue
-                    if combined_product is None:
-                        combined_product = spec_record
-                        combined_product.url = url
-                    else:
-                        combined_product = _merge_records(combined_product, spec_record)
-        except requests.RequestException:
-            pass
-
-        for candidate_url in candidate_urls[1:]:
-            if not _needs_fallback_spec_fetch(combined_product):
-                break
-            try:
-                response = client.get(candidate_url, timeout=min(timeout, 12.0), retries=0)
-                parsed = parse_product_html(config.name, candidate_url, response.text)
-                if parsed is None:
-                    continue
-                if combined_product is None:
-                    combined_product = parsed
-                    combined_product.url = url
-                else:
-                    combined_product = _merge_records(combined_product, parsed)
-            except requests.RequestException:
+        for idx, url in enumerate(unique_urls):
+            parsed_url = urlparse(url)
+            if config.name == "fractal-design" and parsed_url.path.rstrip("/") == "/products":
                 continue
 
-        if combined_product is not None:
-            products.append(combined_product)
-        else:
-            products.append(_build_url_only_record(config.name, url))
-            print(f"[warn] failed to parse product content from {url}; wrote URL-only record", file=sys.stderr)
+            combined_product: ProductRecord | None = None
+            candidate_urls = _build_spec_candidate_urls(config.name, url)
+            if not candidate_urls:
+                continue
 
-        if idx < len(unique_urls) - 1 and delay_seconds > 0:
-            time.sleep(delay_seconds)
+            # Fetch canonical URL first; try extra spec endpoints only when specs are sparse.
+            primary_url = candidate_urls[0]
+            try:
+                primary_response = client.get(primary_url)
+                parsed = parse_product_html(config.name, primary_url, primary_response.text)
+                if parsed is not None:
+                    combined_product = parsed
+                    combined_product.url = url
+
+                if config.name == "biostar" and "introduction.php" in primary_url.lower() and primary_response is not None:
+                    for spec_url in _extract_biostar_spec_urls(primary_url, primary_response.text):
+                        try:
+                            spec_response = client.get(spec_url, timeout=min(timeout, 12.0), retries=0)
+                        except requests.RequestException:
+                            continue
+                        spec_record = parse_product_html(config.name, spec_url, spec_response.text)
+                        if spec_record is None:
+                            continue
+                        if combined_product is None:
+                            combined_product = spec_record
+                            combined_product.url = url
+                        else:
+                            combined_product = _merge_records(combined_product, spec_record)
+            except requests.RequestException:
+                pass
+
+            for candidate_url in candidate_urls[1:]:
+                if not _needs_fallback_spec_fetch(combined_product):
+                    break
+                try:
+                    response = client.get(candidate_url, timeout=min(timeout, 12.0), retries=0)
+                    parsed = parse_product_html(config.name, candidate_url, response.text)
+                    if parsed is None:
+                        continue
+                    if combined_product is None:
+                        combined_product = parsed
+                        combined_product.url = url
+                    else:
+                        combined_product = _merge_records(combined_product, parsed)
+                except requests.RequestException:
+                    continue
+
+            # Playwright fallback: try headless browser when HTTP yielded no specs.
+            if pw_ctx is not None and _needs_playwright_fallback(combined_product):
+                try:
+                    pw_response = pw_ctx.get(url)
+                    pw_parsed = parse_product_html(config.name, url, pw_response.text)
+                    if pw_parsed is not None:
+                        if combined_product is None:
+                            combined_product = pw_parsed
+                            combined_product.url = url
+                        else:
+                            combined_product = _merge_records(combined_product, pw_parsed)
+                except Exception as exc:
+                    print(f"[warn] playwright fallback failed for {url}: {exc}", file=sys.stderr)
+
+            if combined_product is not None:
+                products.append(combined_product)
+            else:
+                products.append(_build_url_only_record(config.name, url))
+                print(f"[warn] failed to parse product content from {url}; wrote URL-only record", file=sys.stderr)
+
+            if idx < len(unique_urls) - 1 and delay_seconds > 0:
+                time.sleep(delay_seconds)
 
     return products

@@ -103,6 +103,11 @@ def _extract_href_links_relaxed(text: str, base_url: str) -> list[str]:
             lowered = href.lower()
             if lowered.startswith(("#", "javascript:", "mailto:", "tel:", "data:")):
                 continue
+            # Reject JS template expressions and invalid characters in hrefs
+            if any(c in href for c in ("(", ")", "{", "}", "<", ">", "\\")):
+                continue
+            if " " in href:
+                continue
             links.append(urljoin(base_url, href))
     return links
 
@@ -112,6 +117,11 @@ def _looks_like_asset_url(url: str) -> bool:
     return path.endswith(
         (".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".ico", ".css", ".js", ".pdf", ".zip", ".xml.gz")
     )
+
+
+def _looks_like_js_template_url(url: str) -> bool:
+    path = urlparse(url).path
+    return any(c in path for c in ("(", ")", "{", "}", "\\"))
 
 
 def _is_same_host(url: str, allowed_hosts: set[str]) -> bool:
@@ -178,6 +188,8 @@ def discover_product_urls(
                     if not node.text:
                         continue
                     raw_url = _normalize_known_hosts(node.text.strip())
+                    if _looks_like_js_template_url(raw_url):
+                        continue
                     url = _strip_locale_segment(raw_url) if strip_locale_prefix else raw_url
                     if _matches_exclude_keywords(url, exclude_keywords):
                         continue
@@ -229,6 +241,8 @@ def discover_product_urls(
                     queue.append(loc)
                     continue
                 raw_url = _normalize_known_hosts(loc)
+                if _looks_like_js_template_url(raw_url):
+                    continue
                 url = _strip_locale_segment(raw_url) if strip_locale_prefix else raw_url
                 if _matches_exclude_keywords(url, exclude_keywords):
                     continue
@@ -275,7 +289,7 @@ def discover_product_urls_from_links(
 
         try:
             response = client.get(normalized_current)
-        except requests.RequestException:
+        except Exception:
             continue
 
         for href in _extract_href_links_relaxed(response.text, normalized_current):

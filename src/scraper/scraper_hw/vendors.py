@@ -15,6 +15,7 @@ class VendorConfig:
     minimum_path_segments: int = 0
     search_queries: tuple[str, ...] = ()
     search_result_pages: int = 1
+    use_playwright: bool = False
 
 
 VENDORS: dict[str, VendorConfig] = {
@@ -60,7 +61,11 @@ VENDORS: dict[str, VendorConfig] = {
             "/feature/",
             "/microsite/",
             "/graphics-card/index.asp",
+            "/graphic-card/index.asp",
             "/networking/index.asp",
+            "/monitor/index.asp",
+            "/mb/index.asp",
+            "/motherboard/index.asp",
         ),
         fallback_link_seeds=(
             "https://www.asrock.com/",
@@ -102,6 +107,7 @@ VENDORS: dict[str, VendorConfig] = {
             "/blog/",
             "/support/",
         ),
+        use_playwright=True,
     ),
     "gigabyte": VendorConfig(
         name="gigabyte",
@@ -120,6 +126,9 @@ VENDORS: dict[str, VendorConfig] = {
             "/Support/",
             "/News/",
             "/Enterprise/",
+            "?fid=",
+            "/All-Series",
+            "/AI-TOP-Capable",
         ),
         fallback_link_seeds=(
             "https://www.gigabyte.com/",
@@ -162,47 +171,37 @@ VENDORS: dict[str, VendorConfig] = {
     ),
     "zotac": VendorConfig(
         name="zotac",
-        sitemaps=("https://www.zotac.com/sitemap.xml",),
+        sitemaps=(),
         include_keywords=(
-            "/product/",
             "/us/product/",
         ),
         exclude_keywords=(
             "/news/",
-            "/support/",
+            "/support",
             "/download/",
             "/faq/",
+            "/all",
+            "/overview",
+            "/compare/",
+            "/page/",
+            "_series",
+            "-series",
+            "?field_filter",
+            "/discontinued/",
+            "/enterprise/",
+            "/accessories/",
+            "/handheld/",
+            "/mainboard/",
+            "/pc-case/",
+            "/pro_mini_pc/",
         ),
-    ),
-    "amd": VendorConfig(
-        name="amd",
-        sitemaps=("https://www.amd.com/sitemap.xml",),
-        include_keywords=(
-            "/en/products/",
-            "/products/",
+        fallback_link_seeds=(
+            "https://www.zotac.com/us/product/graphics_card/all",
+            "https://www.zotac.com/us/product/zotac_gaming/all",
+            "https://www.zotac.com/us/product/mini_pcs/all",
         ),
-        exclude_keywords=(
-            "/support/",
-            "/developer/",
-            "/community/",
-            "/en/gaming/",
-            "/newsroom/",
-        ),
-    ),
-    "intel": VendorConfig(
-        name="intel",
-        sitemaps=("https://www.intel.com/content/www/us/en/sitemaps/sitemap.xml",),
-        include_keywords=(
-            "/products/",
-            "/content/www/us/en/products/",
-        ),
-        exclude_keywords=(
-            "/ark/",
-            "/support/",
-            "/developer/",
-            "/content/www/us/en/docs/",
-            "/content/www/us/en/download/",
-        ),
+        fallback_link_max_depth=2,
+        strip_locale_prefix=False,
     ),
     "coolermaster": VendorConfig(
         name="coolermaster",
@@ -219,6 +218,7 @@ VENDORS: dict[str, VendorConfig] = {
             "/support/",
             "/where-to-buy/",
         ),
+        use_playwright=True,
     ),
     "corsair": VendorConfig(
         name="corsair",
@@ -279,13 +279,14 @@ VENDORS: dict[str, VendorConfig] = {
         name="silverstone",
         sitemaps=("https://www.silverstonetek.com/sitemap.xml",),
         include_keywords=(
-            "/en/product/info/",
+            "/product/info/",
         ),
         exclude_keywords=(
             "?filter=",
             "/support/",
             "/news/",
         ),
+        strip_locale_prefix=False,
     ),
     "seasonic": VendorConfig(
         name="seasonic",
@@ -342,17 +343,26 @@ VENDORS: dict[str, VendorConfig] = {
     ),
     "xfx": VendorConfig(
         name="xfx",
-        sitemaps=("https://www.xfxforce.com",),
+        sitemaps=(),
         include_keywords=(
-            "/product/",
-            "/graphics-cards/",
             "/shop/",
         ),
         exclude_keywords=(
             "/support/",
             "/news/",
             "/blog/",
+            "/about/",
+            "/contact/",
+            "/careers/",
+            "/terms/",
+            "/privacy/",
+            "/account/",
+            "/cart/",
         ),
+        fallback_link_seeds=(
+            "https://www.xfxforce.com/",
+        ),
+        fallback_link_max_depth=2,
     ),
     "sapphire": VendorConfig(
         name="sapphire",
@@ -385,6 +395,7 @@ VENDORS: dict[str, VendorConfig] = {
             "/support",
         ),
         strip_locale_prefix=False,
+        use_playwright=True,
     ),
     "maxsun": VendorConfig(
         name="maxsun",
@@ -404,54 +415,59 @@ VENDORS: dict[str, VendorConfig] = {
         name="powercolor",
         sitemaps=("https://powercolor.com/sitemap.xml",),
         include_keywords=(
-            "/product3-",
-            "/product4-",
+            "/product-detail",
         ),
         exclude_keywords=(
             "/news/",
             "/where-to-buy/",
             "/support/",
-            "/product3.htm",
-            "/product4.htm",
         ),
         strip_locale_prefix=False,
+        use_playwright=True,
     ),
     "powercolour": VendorConfig(
         name="powercolour",
         sitemaps=("https://powercolor.com/sitemap.xml",),
         include_keywords=(
-            "/product3-",
-            "/product4-",
+            "/product-detail",
         ),
         exclude_keywords=(
             "/news/",
             "/where-to-buy/",
             "/support/",
-            "/product3.htm",
-            "/product4.htm",
         ),
         strip_locale_prefix=False,
+        use_playwright=True,
     ),
     "gunnir": VendorConfig(
         name="gunnir",
         sitemaps=("https://en.gunnir.com/sitemap.xml",),
         include_keywords=(
             "/product/",
-            "/products/",
         ),
         exclude_keywords=(
             "/support/",
             "/news/",
             "/blog/",
+            "/product_category/",
+            "/product.html",
         ),
+        fallback_link_seeds=(
+            "https://en.gunnir.com/product_category/PHOTON.html",
+            "https://en.gunnir.com/product_category/FLUX.html",
+            "https://en.gunnir.com/product_category/INDEX.htm",
+        ),
+        fallback_link_max_depth=1,
+        strip_locale_prefix=False,
     ),
     "kingston": VendorConfig(
         name="kingston",
-        sitemaps=("https://www.kingston.com/en",),
+        sitemaps=(),
         include_keywords=(
             "/ssd/",
             "/memory/",
             "/usb-flash-drives/",
+            "/flash-cards/",
             "/card-readers/",
         ),
         exclude_keywords=(
@@ -459,13 +475,37 @@ VENDORS: dict[str, VendorConfig] = {
             "/shop/",
             "/search",
             "/company/",
+            "/category/",
+            "/tag/",
+            "/server-premier",
+            "/gaming",
+            "/system-specific",
+            "/laptop",
+            "/desktop",
+            "/apple",
+            "/all-memory",
+            "/memory/client/",
+            "/server-memory",
+            "/servers-datacenters",
+            "/external-portable",
+            "/desktop-laptop-workstations",
         ),
+        fallback_link_seeds=(
+            "https://www.kingston.com/en/ssd",
+            "https://www.kingston.com/en/memory",
+            "https://www.kingston.com/en/usb-flash-drives",
+            "https://www.kingston.com/en/flash-cards",
+            "https://www.kingston.com/en/card-readers",
+        ),
+        fallback_link_max_depth=2,
+        minimum_path_segments=3,
+        strip_locale_prefix=False,
+        use_playwright=True,
     ),
     "sandisk": VendorConfig(
         name="sandisk",
         sitemaps=(
             "https://www.sandisk.com/sitemap.xml",
-            "https://www.sandisk.com/products/ssd/external-ssd/sandisk-extreme-ssd-afrofuturism-edition?sku=SDSSDE61-1T00-GBH",
         ),
         include_keywords=(
             "/products/",

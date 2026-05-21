@@ -833,8 +833,8 @@
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/tl-h12-x28-r7/", "name": "TL-H12-X28-R7", "model": null, "category": "System Fan", "specs": {}}
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/tl-h12w-x28-r7/", "name": "TL-H12W-X28-R7", "model": null, "category": "System Fan", "specs": {}}
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/tl-h12-x28-r9/", "name": "TL-H12-X28-R9", "model": null, "category": "System Fan", "specs": {}}
-{"vendor": "thermalright", "url": "https://www.thermalright.com/product/tl-h12w-x28-r9/", "name": "TL-H12W-X28-R9", "model": null, "category": "System Fan", "specs": {}}
-{"vendor": "thermalright", "url": "https://www.thermalright.com/product/hr-10-2280-pro-digital-white/", "name": "HR-10 2280 PRO Digital WHITE", "model": null, "category": "Heatsink", "specs": {}}
+{"vendor": "thermalright", "url": "https://www.thermalright.com/product/tl-h12w-x28-r9/", "name": "tl h12w x28 r9", "model": null, "category": "product", "specs": {}}
+{"vendor": "thermalright", "url": "https://www.thermalright.com/product/hr-10-2280-pro-digital-white/", "name": "hr 10 2280 pro digital white", "model": null, "category": "product", "specs": {}}
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/trofeo-vision-lcd-black/", "name": "Trofeo Vision LCD BLACK", "model": null, "category": "Accessories", "specs": {}}
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/trofeo-vision-lcd-white/", "name": "Trofeo Vision LCD WHITE", "model": null, "category": "Accessories", "specs": {}}
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/hr-10-2280-pro-digital-black/", "name": "HR-10 2280 PRO Digital BLACK", "model": null, "category": "Heatsink", "specs": {}}
@@ -843,13 +843,13 @@
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/w360-xeon-lga4189/", "name": "W360-XEON-LGA4189", "model": null, "category": "Products", "specs": {}}
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/w360-xeon-lga4677/", "name": "W360-XEON-LGA4677", "model": null, "category": "Products", "specs": {}}
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/tl-ub36r/", "name": "TL-UB36R", "model": null, "category": "ARGB Fan", "specs": {}}
-{"vendor": "thermalright", "url": "https://www.thermalright.com/product/tl-ub36rw/", "name": "TL-UB36RW", "model": null, "category": "ARGB Fan", "specs": {}}
+{"vendor": "thermalright", "url": "https://www.thermalright.com/product/tl-ub36rw/", "name": "tl ub36rw", "model": null, "category": "product", "specs": {}}
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/w360-epyc-sp3/", "name": "W360-EPYC-SP3", "model": null, "category": "Products", "specs": {}}
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/w360-epyc-sp5/", "name": "W360-EPYC-SP5", "model": null, "category": "Products", "specs": {}}
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/w360-epyc-sp6/", "name": "W360-EPYC-SP6", "model": null, "category": "Products", "specs": {}}
-{"vendor": "thermalright", "url": "https://www.thermalright.com/product/frozen-magic-360-black-argb-v2/", "name": "Frozen Magic 360 BLACK ARGB V2", "model": null, "category": "Products", "specs": {"ARGB Connector": "3 PIN 5V"}}
+{"vendor": "thermalright", "url": "https://www.thermalright.com/product/frozen-magic-360-black-argb-v2/", "name": "frozen magic 360 black argb v2", "model": null, "category": "product", "specs": {}}
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/frozen-magic-360-white-argb-v2/", "name": "Frozen Magic 360 WHITE ARGB V2", "model": null, "category": "Products", "specs": {"ARGB Connector": "3 PIN 5V"}}
-{"vendor": "thermalright", "url": "https://www.thermalright.com/product/wonder-vision-360-turbo-argb-white/", "name": "Wonder Vision 360 Turbo ARGB WHITE", "model": null, "category": "Products", "specs": {}}
+{"vendor": "thermalright", "url": "https://www.thermalright.com/product/wonder-vision-360-turbo-argb-white/", "name": "wonder vision 360 turbo argb white", "model": null, "category": "product", "specs": {}}
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/wonder-vision-360-turbo-argb-black/", "name": "Wonder Vision 360 Turbo ARGB BLACK", "model": null, "category": "Products", "specs": {}}
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/peerless-assassin-120-se-extrem/", "name": "Peerless Assassin 120 SE Extrem", "model": null, "category": "Dual Towers", "specs": {"Bearing Type": "Dual Ball Bearing"}}
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/frozen-horizon-240-digital-argb-black/", "name": "Frozen Horizon 240 Digital ARGB BLACK", "model": null, "category": "Products", "specs": {}}
@@ -1027,12 +1027,12 @@
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/hr-eb118-dual-ac-black/", "name": "HR-EB118 DUAL AC BLACK", "model": null, "category": "Products", "specs": {}}
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/hr-eb118-dual-ac-red/", "name": "HR-EB118 DUAL AC RED", "model": null, "category": "Products", "specs": {}}
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/hr-eb120-c-black/", "name": "HR-EB120 C BLACK", "model": null, "category": "Products", "specs": {}}
-{"vendor": "thermalright", "url": "https://www.thermalright.com/product/hr-eb120-c-grey/", "name": "HR-EB120 C GREY", "model": null, "category": "Products", "specs": {}}
+{"vendor": "thermalright", "url": "https://www.thermalright.com/product/hr-eb120-c-grey/", "name": "hr eb120 c grey", "model": null, "category": "product", "specs": {}}
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/hr-eb123-c-black/", "name": "HR-EB123 C BLACK", "model": null, "category": "Products", "specs": {}}
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/hr-eb123-dual-c-black/", "name": "HR-EB123 DUAL C BLACK", "model": null, "category": "Products", "specs": {}}
-{"vendor": "thermalright", "url": "https://www.thermalright.com/product/hr-eb123-c-grey/", "name": "HR-EB123 C GREY", "model": null, "category": "Products", "specs": {}}
-{"vendor": "thermalright", "url": "https://www.thermalright.com/product/hr-eb123-dual-c-grey/", "name": "HR-EB123 DUAL C GREY", "model": null, "category": "Products", "specs": {}}
-{"vendor": "thermalright", "url": "https://www.thermalright.com/product/hr-eb123-ac-black/", "name": "HR-EB123 AC BLACK", "model": null, "category": "Products", "specs": {}}
+{"vendor": "thermalright", "url": "https://www.thermalright.com/product/hr-eb123-c-grey/", "name": "hr eb123 c grey", "model": null, "category": "product", "specs": {}}
+{"vendor": "thermalright", "url": "https://www.thermalright.com/product/hr-eb123-dual-c-grey/", "name": "hr eb123 dual c grey", "model": null, "category": "product", "specs": {}}
+{"vendor": "thermalright", "url": "https://www.thermalright.com/product/hr-eb123-ac-black/", "name": "hr eb123 ac black", "model": null, "category": "product", "specs": {}}
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/hr-eb123-ac-grey/", "name": "HR-EB123 AC GREY", "model": null, "category": "Products", "specs": {}}
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/hr-eb124-c-black/", "name": "HR-EB124 C BLACK", "model": null, "category": "Products", "specs": {}}
 {"vendor": "thermalright", "url": "https://www.thermalright.com/product/hr-eb124-dual-c-black/", "name": "HR-EB124 DUAL C BLACK", "model": null, "category": "Products", "specs": {}}

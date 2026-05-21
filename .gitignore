@@ -300,3 +300,6 @@ http-client.private.env.json
 .idea/**/copilot.data.migration.*.xml
 
 # End Idea gitignore
+
+# YouTube cookies (sensitive — never commit)
+**/cookies.txt

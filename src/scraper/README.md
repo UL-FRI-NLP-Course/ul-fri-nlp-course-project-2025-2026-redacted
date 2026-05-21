@@ -36,6 +36,12 @@ Scrape all vendors:
 hw-scraper scrape --vendor all --limit 100 --delay 0.7 --output ../../data/all.json
 ```
 
+Scrape all vendors in parallel (writes one `../../data/<vendor>.json` per vendor):
+
+```bash
+bash runall.sh
+```
+
 ## Output schema
 
 Each record has:
@@ -46,6 +52,30 @@ Each record has:
 - `model`
 - `category`
 - `specs` (key/value dictionary)
+
+## YouTube transcript scraper (`scraper_yt`)
+
+Fetches transcripts for all videos in the playlists listed in `scraper_yt/input.txt` and saves them as text files.
+
+Edit `input.txt` to add playlist URLs (one per line, `#` for comments), then run:
+
+```bash
+cd scraper_yt
+python yt_scraper.py
+```
+
+Output is written to `scraper_yt/output/<creator>/<video title>.txt`.
+
+## LTT Labs scraper (`scraper_lttlabs`)
+
+Scrapes all products from lttlabs.com via its internal search API and writes JSONL to stdout.
+
+```bash
+cd scraper_lttlabs
+python lttlabs_scraper.py > ../../../data/lttlabs.jsonl
+```
+
+Progress (`Fetched X/Y`) is printed to stderr and won't pollute the output file.
 
 ## Notes
 

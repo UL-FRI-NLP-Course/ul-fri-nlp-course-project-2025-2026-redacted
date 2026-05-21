@@ -414,8 +414,39 @@ def _extract_vendor_specific_specs(vendor: str, soup: BeautifulSoup, base_url: s
                 continue
             specs[key] = value
 
+    if vendor == "msi":
+        # JS-rendered spec page: section.specWrapper > div.pdtb > div.tr > div.td
+        # Each div.td has a <ul> child (the key) and a NavigableString sibling (the value).
+        for row in soup.select("section.specWrapper div.pdtb div.tr"):
+            td = row.select_one("div.td")
+            if td is None:
+                continue
+            key_node = td.select_one("ul")
+            if key_node is None:
+                continue
+            key = " ".join(key_node.get_text(" ", strip=True).split())
+            value_parts = [
+                str(child).strip()
+                for child in td.children
+                if not getattr(child, "name", None) and str(child).strip()
+            ]
+            value = " ".join(value_parts)
+            if key and value:
+                specs[key] = value
+
     if vendor == "corsair":
         specs.update(_extract_corsair_next_data_specs(soup))
+
+    if vendor in {"powercolor", "powercolour"}:
+        for row in soup.select(".dataTable__tr"):
+            key_node = row.select_one(".th")
+            value_node = row.select_one(".td")
+            if key_node is None or value_node is None:
+                continue
+            key = " ".join(key_node.get_text(" ", strip=True).split())
+            value = " ".join(value_node.get_text(" ", strip=True).split())
+            if key and value:
+                specs[key] = value
 
     if vendor == "maxsun":
         specs.update(_extract_maxsun_grid_specs(soup))
