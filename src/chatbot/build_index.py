@@ -1,70 +1,50 @@
-import os
-import json
 import argparse
+import os
 import pickle
-from pathlib import Path
+import re
 from typing import List, Dict
 
-import numpy as np
 import faiss
+import numpy as np
 from sentence_transformers import SentenceTransformer
 
 
 def load_chunks(data_dir: str) -> List[Dict]:
     chunks: List[Dict] = []
-    data_path = Path(data_dir)
 
-    files = sorted(data_path.rglob("*.jsonl"))
+    for fname in sorted(os.listdir(data_dir)):
+        if not fname.endswith(".md"):
+            continue
 
-    if not files:
-        raise FileNotFoundError(f"No .jsonl files found at {data_dir}?")
+        fpath = os.path.join(data_dir, fname)
+        source = f"{data_dir}/{fname}"
 
-    for file_path in files:
-        with open(file_path, "r", encoding="utf-8") as f:
-            for line_no, line in enumerate(f, 1):
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    entry = json.loads(line)
-                except json.JSONDecodeError as e:
-                    print(f"  warning: skipping bad JSON at {file_path}:{line_no} ({e})")
-                    continue
+        with open(fpath, encoding="utf-8") as f:
+            raw = f.read()
 
-                text = (entry.get("text") or "").strip()
-                if not text:
-                    continue
+        title_match = re.search(r"^# (.+)", raw, re.MULTILINE)
+        title = title_match.group(1).strip() if title_match else fname
 
-                # samo linki in nič stavkov, počisti data
-                if text.count("http") >= 5 and text.count(". ") < 3:
-                    continue
+        # Split on H2 headings; odd indices = heading, even = body
+        parts = re.split(r"^(## .+)$", raw, flags=re.MULTILINE)
 
-                topic = entry.get("topic_title", "")
-                source_title = entry.get("source_title", "")
+        for i in range(1, len(parts), 2):
+            heading = parts[i][3:].strip()
+            body = parts[i + 1].strip() if i + 1 < len(parts) else ""
+            body = re.sub(r"\[Image:[^\]]*\]\n?", "", body).strip()
 
-                prefix_parts = [p for p in [topic, source_title] if p]
-                prefix = f"[{' | '.join(prefix_parts)}] " if prefix_parts else ""
-                embed_text = prefix + text
+            if len(body) < 80:
+                continue
 
-                # for display
-                display_source = " — ".join(prefix_parts) or entry.get("source_url") or "unknown"
+            text = f"[{title}] {heading}\n{body}"
+            chunks.append({
+                "embed_text": text,
+                "text": text,
+                "source": source,
+                "section": heading,
+                "category": data_dir,
+            })
 
-                chunks.append({
-                    "text": text,
-                    "embed_text": embed_text,
-                    "source": display_source,
-                    "topic_title": topic,
-                    "topic_url": entry.get("topic_url", ""),
-                    "source_title": source_title,
-                    "source_url": entry.get("source_url", ""),
-                    "chunk_id": entry.get("chunk_id", ""),
-                    "chunk_index": entry.get("chunk_index"),
-                    "groups": entry.get("groups", []),
-                    "also_called": entry.get("also_called", []),
-                    "mesh_headings": entry.get("mesh_headings", []),
-                    "information_categories": entry.get("information_categories", []),
-                    "organization": entry.get("organization", ""),
-                })
     return chunks
 
 
@@ -88,7 +68,7 @@ def build_index(chunks: List[Dict], embedding_model: SentenceTransformer):
     index = faiss.IndexFlatIP(dim)
     index.add(embeddings.astype(np.float32))
 
-    # Drop embed_text from saved metadata — only the embedder needed it,
+    # Drop embed_text from saved metadata ? only the embedder needed it,
     # and we don't want it cluttering retrieval results.
     metadata = [{k: v for k, v in c.items() if k != "embed_text"} for c in chunks]
     return index, metadata
@@ -96,7 +76,7 @@ def build_index(chunks: List[Dict], embedding_model: SentenceTransformer):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-dir", required=True, help="Chunked jsonl")
+    parser.add_argument("--data-dir", required=True)
     parser.add_argument("--output-dir", default="./rag_index")
     parser.add_argument("--embedding-model", default="BAAI/bge-base-en-v1.5")
     args = parser.parse_args()

@@ -5,12 +5,15 @@ from typing import List, Dict
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
+from torch import Tensor
 
 
 class RAGRetriever:
 
-    def __init__(self, index_dir: str):
+    def __init__(self, id:str, index_dir: str, keywords: Tensor):
+        self.id = id,
         self.index = faiss.read_index(os.path.join(index_dir, "index.faiss"))
+        self.keywords = keywords
 
         with open(os.path.join(index_dir, "metadata.pkl"), "rb") as f:
             self.metadata = pickle.load(f)
