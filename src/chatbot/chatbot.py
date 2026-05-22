@@ -89,8 +89,7 @@ Question: {question}"""
     return messages
 
 
-def rag_lookup(model, tokenizer, question, history, retriever, top_k, show_sources):
-    search_query = rewrite_query(REWRITE_PROMPT, model, tokenizer, question, history)
+def rag_lookup(search_query, retriever, top_k, show_sources):
     results = retriever.retrieve(search_query, k=top_k, min_score=0.500)
 
     if show_sources:
@@ -146,11 +145,12 @@ def chat_loop(model, tokenizer, rag_model, rag_retrievers, top_k=4, max_history_
             print("[history cleared]\n")
             continue
 
-        rags = route_query(rag_model, rag_retrievers, question, 0.4)
+        search_query = rewrite_query(REWRITE_PROMPT, model, tokenizer, question, history)
+        rags = route_query(rag_model, rag_retrievers, search_query, 0.4)
         context = ""
         for rag in rags:
             context += "\n"
-            context += rag_lookup(model, tokenizer, question, history, rag, top_k, show_sources)
+            context += rag_lookup(search_query, rag, top_k, show_sources)
 
         # answer
         messages = build_messages(SYSTEM_PROMPT, history, context, question)
