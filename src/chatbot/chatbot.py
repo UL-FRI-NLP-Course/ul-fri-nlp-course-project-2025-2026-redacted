@@ -170,7 +170,7 @@ def main():
     parser.add_argument("--index-dir", default="./rag_index")
     parser.add_argument("--model", default="mistralai/Mistral-7B-Instruct-v0.3")
     parser.add_argument("--top-k", type=int, default=3)
-    parser.add_argument("--show-sources", action="store_true", default=True, help="Print retrieved chunks (debug)")
+    parser.add_argument("--show-sources", action="store_true", default=False, help="Print retrieved chunks (debug)")
 
     args = parser.parse_args()
 
