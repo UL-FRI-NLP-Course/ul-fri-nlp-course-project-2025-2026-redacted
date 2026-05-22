@@ -10,7 +10,7 @@
       <excludeFolder url="file://$MODULE_DIR$/containers" />
       <excludeFolder url="file://$MODULE_DIR$/data" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.14 (Redacted)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.9 (ul-fri-nlp-course-project-2025-2026-redacted)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>
