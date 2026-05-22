@@ -20,6 +20,8 @@
 %----------------------------------------------------------------------------------------
 \documentclass[fleqn,moreauthors,10pt]{ds_report}
 \usepackage[english]{babel}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning}
 
 \graphicspath{{fig/}}
 
@@ -34,8 +36,8 @@
 \JournalInfo{FRI Natural language processing course 2026}
 
 % Interim or final report
-\Archive{Project report} 
-%\Archive{Final report} 
+%\Archive{Project report}
+\Archive{Final report}
 
 % Article title
 \PaperTitle{Redacted} 
@@ -57,7 +59,7 @@
 
 \Abstract{
 
-We propose a Redacted — a domain-specific conversational AI that recommends PC components based on user needs and budget. General-purpose LLMs often provide inaccurate component advice due to stale or hallucinated specifications - we will build an assistant with explicit compatibility rules to ground recommendations in verified manufacturer data.
+We present a domain-specific conversational AI assistant for PC component selection, focused on CPU and GPU recommendations. General-purpose LLMs often hallucinate component specifications — our system grounds every response in passages retrieved from curated hardware reviews via a Retrieval-Augmented Generation (RAG) pipeline. The system features LLM-driven query rewriting for multi-turn coherence, semantic routing between separate CPU and GPU indexes, and citation-aware generation with Mistral-7B-Instruct \cite{jiang2023mistral}. Qualitative evaluation shows strong performance on specific product comparisons while revealing limitations on queries about components absent from the review corpus.
 
 }
 
@@ -80,24 +82,92 @@ We propose a Redacted — a domain-specific conversational AI that recommends PC
 
 \section*{Introduction}
 
-Choosing PC components is a common technical challenge for newcomers to the hobby, yet general-purpose LLMs often provide incorrect information (e.g., CPU socket compatibility, number of PCIe slots, bandwidth...). Our goal is to design an AI assistant that provides trustworthy, source-grounded component recommendations for PC builders. We aim to speed up the component selection process while recommending components that would suit the consumer's needs best. 
+Choosing PC components is a common technical challenge for newcomers, yet general-purpose LLMs often produce incorrect information — hallucinated socket types, non-existent models, or stale benchmark figures. We built a conversational assistant grounded in real hardware review content that helps users select CPUs and GPUs based on their needs and budget. The system uses Retrieval-Augmented Generation to cite sources for every claim and maintains multi-turn conversation context so users can refine their requirements across several exchanges.
 
 %------------------------------------------------
 
-\section*{Proposed Dataset}
+\section*{Dataset}
 
-We will compile a corpus of official product specification pages and manuals from major component manufacturers (ASUS, MSI, Gigabyte, ASRock, AMD, Intel, NVIDIA). For each component we will extract both structured attributes and unstructured text segments (datasheets, compatibility notes, BIOS guidance) to support RAG. The initial scope targets consumer-grade parts released in roughly the last three years so the assistant remains relevant for typical PC builders.
+We assembled a corpus of 49 hardware review articles: 29 covering CPUs and 20 covering GPUs, sourced from TechPowerUp, TechSpot, Tom's Hardware, Eurogamer, PC Gamer, PCMag, and Digital Trends. Articles were scraped and converted to Markdown using a custom scraper. Each article was then split into chunks at H2-level section boundaries (e.g. \textit{Gaming Performance}, \textit{Thermals}, \textit{Conclusion}), with chunks shorter than 80 characters discarded as uninformative. This produced two separate corpora — one per component category — used to build independent retrieval indexes. Table~\ref{tab:dataset} summarises the corpus.
 
+\begin{table}[h]
+\caption{Review corpus statistics after chunking.}
+\label{tab:dataset}
+\centering
+\begin{tabular}{lrrr}
+\hline
+Category & Documents & Chunks & Sources \\
+\hline
+CPU & 29 & $\sim$290 & TPU, TechSpot, THW, EG \\
+GPU & 20 & $\sim$200 & TPU, TechSpot, THW, PG \\
+\hline
+\textbf{Total} & \textbf{49} & \textbf{$\sim$490} & \\
+\hline
+\end{tabular}
+\end{table}
 
+\section*{System}
 
-\section*{Initial approach}
+\subsection*{Overview}
+The pipeline (Figure~\ref{fig:pipeline}) consists of four stages: query routing, query rewriting, retrieval, and generation. All stages share two frozen models: \texttt{BAAI/bge-base-en-v1.5} (768-dim) for dense retrieval and \texttt{mistralai/Mistral-7B-Instruct-v0.3} for rewriting and generation.
 
-We will scrape and normalize official specification pages into a structured schema plus text chunks, then enforce explicit compatibility rules (socket, chipset, RAM type, PCIe lanes, PSU headroom) to ensure each candidate build is compatible before recommendations are generated. A Retrieval-Augmented Generation layer retrieves the most relevant spec passages for each query, and an instruction-tuned LLM combines that evidence with rule verdicts to produce conversational recommendations with source citations. 
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[
+  node distance=0.45cm and 0.6cm,
+  box/.style={rectangle, draw, rounded corners=3pt, minimum width=2.2cm, minimum height=0.55cm, font=\small, align=center},
+  arr/.style={-{Latex[length=2mm]}, thick},
+]
+  \node[box] (user) {User query};
+  \node[box, below=of user] (route) {Query routing\\{\scriptsize all-MiniLM-L6-v2}};
+  \node[box, below left=0.5cm and 0.5cm of route] (cpu) {CPU index};
+  \node[box, below right=0.5cm and 0.5cm of route] (gpu) {GPU index};
+  \node[box, below=1.3cm of route] (rewrite) {Query rewriting\\{\scriptsize Mistral-7B, T=0}};
+  \node[box, below=of rewrite] (retrieve) {FAISS retrieval\\{\scriptsize bge-base, k=3, $\tau$=0.5}};
+  \node[box, below=of retrieve] (gen) {Generation\\{\scriptsize Mistral-7B, T=0.7}};
+  \node[box, below=of gen] (resp) {Response};
+
+  \draw[arr] (user) -- (route);
+  \draw[arr] (route) -- (cpu);
+  \draw[arr] (route) -- (gpu);
+  \draw[arr] (cpu) -- (rewrite);
+  \draw[arr] (gpu) -- (rewrite);
+  \draw[arr] (rewrite) -- (retrieve);
+  \draw[arr] (retrieve) -- (gen);
+  \draw[arr] (gen) -- (resp);
+\end{tikzpicture}
+\caption{System pipeline. The query is first routed to one or both domain indexes, then rewritten into a standalone search query before retrieval and generation.}
+\label{fig:pipeline}
+\end{figure}
+
+\subsection*{Indexing}
+Each corpus was embedded with \texttt{BAAI/bge-base-en-v1.5} (batch size 32, L2-normalised) and stored in a FAISS \texttt{IndexFlatIP} index. Because embeddings are normalised, inner product equals cosine similarity, making retrieval scores directly interpretable as relevance confidence.
+
+\subsection*{Query Routing}
+A lightweight routing step selects which domain index to query. Both the incoming query and a fixed keyword description for each domain (\textit{"processor CPU cores threads clock speed gaming workloads"} for CPU; \textit{"graphics card GPU VRAM ray tracing frames rendering"} for GPU) are embedded with \texttt{all-MiniLM-L6-v2} (384-dim). The cosine similarity between query and each keyword centroid determines which index is queried. Any index scoring above 0.4 is included; if none pass, the highest-scoring index is used as a fallback.
+
+\subsection*{Query Rewriting}
+In multi-turn conversations, pronouns and ellipsis make queries ambiguous for retrieval (e.g.\ \textit{"how does it compare to the other one?"}). Before retrieval, Mistral-7B rewrites the user question into a standalone search query conditioned on the conversation history. Rewriting uses greedy decoding (temperature = 0, max 100 new tokens) to ensure deterministic, compact output.
+
+\subsection*{Retrieval and Generation}
+The rewritten query is embedded and the top $k=3$ chunks above a cosine similarity threshold of 0.5 are retrieved from each selected index. Retrieved chunks are injected into the prompt with inline citation instructions so the model attributes claims to numbered sources. Mistral-7B-Instruct-v0.3 generates the final response with temperature 0.7 and a maximum of 512 new tokens running in fp16 on CUDA. Up to 6 conversation turns (12 messages) are retained in context.
 
 \section*{Related work}
-RAG-based systems demonstrate that injecting retrieved passages before decoding substantially improves factual accuracy on knowledge-intensive tasks, yet still struggles when key specifications are missing \cite{lewis2020rag,izacard2021leveraging}. Instruction-tuned models offer better conversational control but inherit the same grounding limitations unless connected to authoritative data sources \cite{ouyang2022training}. Bengio argues for hybrid neural–symbolic approaches to ensure dependable reasoning in high-stakes settings, motivating our combination of RAG with explicit compatibility rules \cite{bengio2020reconsidering}. Finally, tools like the PCPartPicker compatibility engine show that deterministic rule bases prevent hardware mismatches but lack conversational flexibility; our assistant aims to merge their reliability with LLM-driven dialogue \cite{pcpartpicker2026compatibility}.
+RAG-based systems demonstrate that injecting retrieved passages substantially improves factual accuracy on knowledge-intensive tasks, yet performance drops when key facts are absent from the corpus \cite{lewis2020rag,izacard2021leveraging}. Instruction-tuned models offer conversational control but inherit the same grounding limitations without authoritative retrieval \cite{ouyang2022training}. Query rewriting has been shown to significantly improve multi-turn retrieval quality by resolving coreferences before the search step \cite{ma2023queryrewrite}. Tools like PCPartPicker \cite{pcpartpicker2026compatibility} demonstrate reliable rule-based compatibility checking but lack conversational flexibility; our system trades deterministic rule coverage for broader, review-grounded recommendation quality.
 
 
+
+\section*{Results}
+
+We evaluated the assistant qualitatively across three query types: specific product comparisons, budget recommendation requests, and out-of-scope or out-of-corpus questions.
+
+\textbf{Works well.} When a reviewed product is queried directly (e.g. \textit{"Is the Ryzen 7 9800X3D worth it for gaming?"}), the system reliably retrieves the relevant review sections and generates accurate, cited answers. Multi-turn follow-ups (e.g. \textit{"How does it compare thermally?"}) resolve correctly via query rewriting — without it, naive retrieval on the anaphoric follow-up returns irrelevant chunks.
+
+\textbf{Degrades gracefully.} For budget queries (e.g. \textit{"Best GPU under \$300"}), the system retrieves buyer-guide sections with ranked recommendations and scores them against the budget. The answers are useful but less precise, as prices in reviews can be outdated.
+
+\textbf{Fails.} The system cannot answer questions about products absent from the corpus (e.g. unreleased or niche GPUs) — it correctly refuses rather than hallucinating, but this is a hard coverage limit. Routing also occasionally misfires: queries phrased as general computing questions (e.g. \textit{"Will 16GB RAM bottleneck performance?"}) are sometimes routed to both indexes, inflating the context and diluting relevance.
+
+Formal automatic evaluation (e.g. Recall@k on a held-out query set) is left for future work given the absence of a labelled QA benchmark for this narrow domain.
 
 %----------------------------------------------------------------------------------------
 %	REFERENCE LIST

@@ -13,37 +13,49 @@ def load_chunks(data_dir: str) -> List[Dict]:
     chunks: List[Dict] = []
 
     for fname in sorted(os.listdir(data_dir)):
-        if not fname.endswith(".md"):
-            continue
-
         fpath = os.path.join(data_dir, fname)
         source = f"{data_dir}/{fname}"
 
-        with open(fpath, encoding="utf-8") as f:
-            raw = f.read()
+        if fname.endswith(".md"):
+            with open(fpath, encoding="utf-8") as f:
+                raw = f.read()
 
-        title_match = re.search(r"^# (.+)", raw, re.MULTILINE)
-        title = title_match.group(1).strip() if title_match else fname
+            title_match = re.search(r"^# (.+)", raw, re.MULTILINE)
+            title = title_match.group(1).strip() if title_match else fname
 
-        # Split on H2 headings; odd indices = heading, even = body
-        parts = re.split(r"^(## .+)$", raw, flags=re.MULTILINE)
+            # Split on H2 headings; odd indices = heading, even = body
+            parts = re.split(r"^(## .+)$", raw, flags=re.MULTILINE)
 
-        for i in range(1, len(parts), 2):
-            heading = parts[i][3:].strip()
-            body = parts[i + 1].strip() if i + 1 < len(parts) else ""
-            body = re.sub(r"\[Image:[^\]]*\]\n?", "", body).strip()
+            for i in range(1, len(parts), 2):
+                heading = parts[i][3:].strip()
+                body = parts[i + 1].strip() if i + 1 < len(parts) else ""
+                body = re.sub(r"\[Image:[^\]]*\]\n?", "", body).strip()
 
-            if len(body) < 80:
-                continue
+                if len(body) < 80:
+                    continue
 
-            text = f"[{title}] {heading}\n{body}"
-            chunks.append({
-                "embed_text": text,
-                "text": text,
-                "source": source,
-                "section": heading,
-                "category": data_dir,
-            })
+                text = f"[{title}] {heading}\n{body}"
+                chunks.append({
+                    "embed_text": text,
+                    "text": text,
+                    "source": source,
+                    "section": heading,
+                    "category": data_dir,
+                })
+
+        elif fname.endswith(".txt"):
+            with open(fpath, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if len(line) < 20:
+                        continue
+                    chunks.append({
+                        "embed_text": line,
+                        "text": line,
+                        "source": source,
+                        "section": "",
+                        "category": data_dir,
+                    })
 
     return chunks
 
@@ -77,15 +89,24 @@ def build_index(chunks: List[Dict], embedding_model: SentenceTransformer):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-dir", required=True)
+    parser.add_argument("--extra-dir", default=None,
+                        help="Optional second directory of .txt chunks to append")
     parser.add_argument("--output-dir", default="./rag_index")
     parser.add_argument("--embedding-model", default="BAAI/bge-base-en-v1.5")
     args = parser.parse_args()
 
+    import torch
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Using device: {device}")
     print(f"Loading embedding model: {args.embedding_model}")
-    embedding_model = SentenceTransformer(args.embedding_model, device='cuda')
+    embedding_model = SentenceTransformer(args.embedding_model, device=device)
 
     print(f"Loading chunks from: {args.data_dir}")
     chunks = load_chunks(args.data_dir)
+
+    if args.extra_dir:
+        print(f"Loading extra chunks from: {args.extra_dir}")
+        chunks += load_chunks(args.extra_dir)
 
     if not chunks:
         raise SystemExit("No chunks?? oops")
