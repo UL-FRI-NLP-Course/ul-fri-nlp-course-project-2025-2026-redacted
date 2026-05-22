@@ -7,9 +7,8 @@ Data collection tools for the project. Each subdirectory is a self-contained scr
 | [`scraper_hw/`](scraper_hw/README.md) | Crawls manufacturer websites (ASUS, MSI, Gigabyte, etc.) for product spec pages                                                                                                       |
 | [`scraper_lttlabs/`](scraper_lttlabs/README.md) | Scrapes product specs from LTT Labs via their internal Typesense API                                                                                                                  |
 | [`scraper_yt/`](scraper_yt/README.md) | Downloads transcripts from YouTube playlists                                                                                                                                            |
+| [`scraper_steam/`](scraper_steam/README.md) | Fetches top games from SteamDB and collects system requirements from the Steam Store API                                                                                               |
 | [`cpu-spec-dataset-main/`](cpu-spec-dataset-main/README.md) | Third-party Java-based CPU spec scraper ([felixsteinke/cpu-spec-dataset](https://github.com/felixsteinke/cpu-spec-dataset)) — required modifications to work with the current webpages |
-
-The SteamDB + Steam Store requirements scraper lives in [`../steamdb/`](../steamdb/README.md).
 
 ## Shared setup
 

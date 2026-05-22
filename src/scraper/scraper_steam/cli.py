@@ -5,8 +5,8 @@ from pathlib import Path
 
 import typer
 
-from steamdb_scraper.charts import fetch_charts, parse_charts_from_file
-from steamdb_scraper.store import fetch_requirements
+from scraper_steam.charts import fetch_charts, parse_charts_from_file
+from scraper_steam.store import fetch_requirements
 
 app = typer.Typer(help="Scrape SteamDB top charts and fetch system requirements from the Steam store API.")
 

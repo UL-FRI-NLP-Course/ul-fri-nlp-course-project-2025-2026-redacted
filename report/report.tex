@@ -46,7 +46,7 @@
 \Authors{Miha Mitič in Jošt Eržen}
 
 % Advisors
-\affiliation{\textit{Advisors: Slavko Žitnik}}
+\affiliation{\textit{Advisors: Aleš Žagar}}
 
 % Keywords
 \Keywords{PC, hardware, computers, domain specific AI, assistant}
@@ -59,7 +59,7 @@
 
 \Abstract{
 
-We present a domain-specific conversational AI assistant for PC component selection, focused on CPU and GPU recommendations. General-purpose LLMs often hallucinate component specifications — our system grounds every response in passages retrieved from curated hardware reviews via a Retrieval-Augmented Generation (RAG) pipeline. The system features LLM-driven query rewriting for multi-turn coherence, semantic routing between separate CPU and GPU indexes, and citation-aware generation with Mistral-7B-Instruct \cite{jiang2023mistral}. Qualitative evaluation shows strong performance on specific product comparisons while revealing limitations on queries about components absent from the review corpus.
+We present a domain-specific conversational assistant that helps users choose CPU (Central Processing Unit) and GPU (Graphics Processing Unit) components (and is extensible to other components) and answer related questions about PC hardware. The system combines a generative LLM (Large Language Models) with multiple Retrieval-Augmented Generation (RAG) indexes built from heterogeneous source material (component specifications and review articles). A lightweight embedding-based routing mechanism dispatches each query to one or more relevant indexes, and a query-rewriting step makes conversational follow-ups work with retrieval. We describe the design iterations that led to this architecture, the final implementation, and qualitative results.
 
 }
 
@@ -82,92 +82,136 @@ We present a domain-specific conversational AI assistant for PC component select
 
 \section*{Introduction}
 
-Choosing PC components is a common technical challenge for newcomers, yet general-purpose LLMs often produce incorrect information — hallucinated socket types, non-existent models, or stale benchmark figures. We built a conversational assistant grounded in real hardware review content that helps users select CPUs and GPUs based on their needs and budget. The system uses Retrieval-Augmented Generation to cite sources for every claim and maintains multi-turn conversation context so users can refine their requirements across several exchanges.
+General-purpose LLMs\cite{naveed2025comprehensive} are convenient for casual hardware questions but tend to be unreliable when asked about specific components, current-generation performance, or comparative recommendations: their training cut-offs make them oblivious to recent releases, and they readily hallucinate specifications. We set out to build a small assistant that grounds its answers in retrieved, sourced material, while still feeling like a chatbot rather than a search engine.
+ 
+Our final system we dveloped is a conversational PC-building assistant with three distinguishing properties. First, it uses \emph{multiple} RAG\cite{lewis2020rag} indexes built from qualitatively different source material rather than a single monolithic store. Second, queries are routed to the relevant index(es) through a cheap embedding-similarity step against per-index keyword descriptors, so unrelated material is never retrieved. Third, the routing layer is decoupled from the generation model and from the index contents, which lets new indexes be added without retraining or re-prompting anything.
 
-%------------------------------------------------
+\section*{Related Work}
+ 
+The components we use are standard: dense retrieval with sentence-level bi-encoders, FAISS\cite{krisnawati2024indonesian} (Facebook Artificial Inteligence Similarity Search) for approximate nearest-neighbor search, and an instruction-tuned LLM for generation. The conversational rewriting step follows the well-known pattern of condensing chat history plus a new turn into a standalone query before retrieval, which avoids the failure mode where pronouns or topic shifts derail the retriever. Routing across multiple retrieval sources (sometimes called \emph{agentic} or \emph{multi-index} RAG\cite{singh2025agentic}) is also increasingly common; our contribution is not the idea but the specific, lightweight realization described below.
+
 
 \section*{Dataset}
 
-We assembled a corpus of 49 hardware review articles: 29 covering CPUs and 20 covering GPUs, sourced from TechPowerUp, TechSpot, Tom's Hardware, Eurogamer, PC Gamer, PCMag, and Digital Trends. Articles were scraped and converted to Markdown using a custom scraper. Each article was then split into chunks at H2-level section boundaries (e.g. \textit{Gaming Performance}, \textit{Thermals}, \textit{Conclusion}), with chunks shorter than 80 characters discarded as uninformative. This produced two separate corpora — one per component category — used to build independent retrieval indexes. Table~\ref{tab:dataset} summarises the corpus.
+The corpus is composed of two complementary source types, organised into separate CPU and GPU retrieval indexes.
+
+\textbf{Review articles.}
+We assembled 49 hardware review articles - 29 covering CPUs and 20 covering GPUs - gathered from TechPowerUp\cite{techpowerup}, TechSpot\cite{techspot}, Tom's Hardware\cite{tomshardware}, Eurogamer\cite{eurogamer}, PC Gamer\cite{pcgamer}, PCMag\cite{pcmag}, and Digital Trends \cite{digitaltrends}. Each article's HTML was downloaded through a browser, then converted to Markdown and split at H2-level section boundaries (e.g.\ \textit{Gaming Performance}, \textit{Thermals}, \textit{Conclusion}), with fragments under 80 characters discarded as uninformative. Table~\ref{tab:dataset} summarises the review corpus.
+
+\textbf{Structured data.}
+Consumer CPU specifications for AMD and Intel processors were collected from the official AMD product specifications page\cite{amd_specifications} and Intel ARK\cite{intel_ark}. GPU specifications were likewise sourced from AMD's product pages\cite{amd_specifications}. CPU and GPU benchmark scores were obtained from PassMark\cite{passmark}. A list of popular Steam titles was retrieved from SteamDB\cite{steamdb}; minimum and recommended hardware requirements for each title were then fetched directly from the Steam Store\cite{steam_store}. Each structured record is serialised as a single plain-text chunk and included in the respective index alongside the review chunks.
+
+All chunks are embedded with \texttt{BAAI/bge-base-en-v1.5} and stored in FAISS \texttt{IndexFlatIP} indexes; because embeddings are L2-normalised, inner product equals cosine similarity.
+
+Quantity was the main limitation with written articles: specification data was not difficult to obtain in clean tabular form, but high-quality review articles are much harder to scrape at scale, and we ended up with fewer than we would have liked. This unevenness shows up in the results.
 
 \begin{table}[h]
-\caption{Review corpus statistics after chunking.}
+\caption{Review article corpus statistics after chunking.}
 \label{tab:dataset}
 \centering
-\begin{tabular}{lrrr}
+\begin{tabular}{lrr}
 \hline
-Category & Documents & Chunks & Sources \\
+Category & Documents & Chunks\\
 \hline
-CPU & 29 & $\sim$290 & TPU, TechSpot, THW, EG \\
-GPU & 20 & $\sim$200 & TPU, TechSpot, THW, PG \\
+CPU & 29 & $\sim$290 \\
+GPU & 20 & $\sim$200 \\
 \hline
-\textbf{Total} & \textbf{49} & \textbf{$\sim$490} & \\
+\textbf{Total} & \textbf{49} & \textbf{$\sim$490} \\
 \hline
 \end{tabular}
 \end{table}
 
-\section*{System}
+\section*{Exploration}
+ 
+The current architecture is the fourth iteration. In this section we describe the process that lead us to the final version. We list the failed ones because each one motivates a piece of the final design.
+ 
+\textbf{V1 -- single index, specs only.} The first prototype indexed only specification sheets into one FAISS store. It was good at factual spec questions (``how many cores does an X have?'') but useless for the questions users actually want answered, like ``which of these two is faster for gaming?'' -- nothing in the spec sheet directly says that.
+ 
+\textbf{V2 -- single index, specs and reviews mixed.} Adding review articles to the same index fixed the recommendation problem but broke spec lookups: a question that asked for a single concrete number would often retrieve a long review paragraph that mentioned the part in passing, and the LLM would either answer vaguely or pick up an incidental claim from prose instead of a specification.
+ 
+\textbf{V3 -- multiple indexes, LLM-based routing.} The fix was to split the data back apart and let a router decide which index to query. Our first router asked the generation LLM (Mistral-7B-Instruct) to pick one or more index names from a list. This was both slow (an extra generation per turn) and unreliable: the model often picked the wrong index, refused to pick, or invented index names that did not exist. We assume using a bigger model both for generation and routing would help solve this issue, but this went against the goal of equipping a smaller otherwise worse model with information to make it compete with other larger and drastically slower models.
+ 
+\textbf{V4 -- multiple indexes, embedding-based routing.} The final design replaces the LLM router with a much smaller and faster sentence-transformer that scores the user query against a short natural-language description of each index. This is essentially free to run, deterministic, and trivially extensible: adding a new index just means writing a new description string or adding keywords.
 
-\subsection*{Overview}
-The pipeline (Figure~\ref{fig:pipeline}) consists of four stages: query routing, query rewriting, retrieval, and generation. All stages share two frozen models: \texttt{BAAI/bge-base-en-v1.5} (768-dim) for dense retrieval and \texttt{mistralai/Mistral-7B-Instruct-v0.3} for rewriting and generation.
+\section*{Implementation}
+ 
+The pipeline (Figure~\ref{fig:pipeline}) consists of four stages: query rewriting, query routing, retrieval, and generation. All stages share three frozen models: \texttt{all-MiniLM-L6-v2} (384-dim) for query routing, \texttt{BAAI/bge-base-en-v1.5} (768-dim) for dense retrieval and \texttt{Mistral-7B-Instruct-v0.3} for rewriting and generation.
 
-\begin{figure}[h]
+\begin{figure}[t]
 \centering
 \begin{tikzpicture}[
-  node distance=0.45cm and 0.6cm,
-  box/.style={rectangle, draw, rounded corners=3pt, minimum width=2.2cm, minimum height=0.55cm, font=\small, align=center},
-  arr/.style={-{Latex[length=2mm]}, thick},
+    >={Stealth[length=1.4mm]},
+    node distance=0.32cm,
+    box/.style={rectangle, draw, rounded corners=1.5pt, align=center,
+                inner sep=2.5pt, font=\scriptsize, minimum height=0.6cm,
+                minimum width=6.4cm},
+    llm/.style={box, fill=blue!8},
+    embed/.style={box, fill=green!10},
+    util/.style={box, fill=gray!10},
+    rag/.style={rectangle, draw, rounded corners=1.5pt, align=center,
+                inner sep=1.5pt, font=\tiny, minimum height=0.55cm,
+                minimum width=1.5cm, fill=orange!15},
+    io/.style={font=\scriptsize\itshape, align=center}
 ]
-  \node[box] (user) {User query};
-  \node[box, below=of user] (route) {Query routing\\{\scriptsize all-MiniLM-L6-v2}};
-  \node[box, below left=0.5cm and 0.5cm of route] (cpu) {CPU index};
-  \node[box, below right=0.5cm and 0.5cm of route] (gpu) {GPU index};
-  \node[box, below=1.3cm of route] (rewrite) {Query rewriting\\{\scriptsize Mistral-7B, T=0}};
-  \node[box, below=of rewrite] (retrieve) {FAISS retrieval\\{\scriptsize bge-base, k=3, $\tau$=0.5}};
-  \node[box, below=of retrieve] (gen) {Generation\\{\scriptsize Mistral-7B, T=0.7}};
-  \node[box, below=of gen] (resp) {Response};
 
-  \draw[arr] (user) -- (route);
-  \draw[arr] (route) -- (cpu);
-  \draw[arr] (route) -- (gpu);
-  \draw[arr] (cpu) -- (rewrite);
-  \draw[arr] (gpu) -- (rewrite);
-  \draw[arr] (rewrite) -- (retrieve);
-  \draw[arr] (retrieve) -- (gen);
-  \draw[arr] (gen) -- (resp);
+\node[io] (input) {user question + conversation history};
+\node[llm, below=of input] (rewrite)
+    {Query rewriter (Mistral-7B-Instruct, $T{=}0$)};
+\node[embed, below=of rewrite] (router)
+    {Router: all-MiniLM-L6-v2,\\cosine sim.\ vs.\ keyword emb., thr.\ $0.4$};
+
+% Three RAG boxes, horizontally centered as a group under the router
+\node[rag, below=0.7cm of router] (gpu) {GPU\\index};
+\node[rag, left=0.3cm of gpu] (cpu) {CPU\\index};
+\node[rag, draw=gray!60, dashed, text=gray!60,
+      right=0.3cm of gpu] (more) {future\\\ldots};
+
+\node[util, below=2.0cm of router] (ctx)
+    {Top-$k$ retrieval, score $\geq 0.5$ filter, concatenate};
+\node[llm, below=of ctx] (gen)
+    {Generator (Mistral-7B-Instruct) + sys.\ prompt + history};
+\node[io, below=of gen] (out) {assistant response};
+
+\draw[->] (input)   -- (rewrite);
+\draw[->] (rewrite) -- (router);
+\draw[->] (router.south) -- (cpu.north);
+\draw[->] (router.south) -- (gpu.north);
+\draw[->,dashed,gray!70] (router.south) -- (more.north);
+\draw[->] (cpu.south)  -- (cpu.south  |- ctx.north);
+\draw[->] (gpu.south)  -- (gpu.south  |- ctx.north);
+\draw[->,dashed,gray!70] (more.south) -- (more.south |- ctx.north);
+\draw[->] (ctx) -- (gen);
+\draw[->] (gen) -- (out);
+
 \end{tikzpicture}
-\caption{System pipeline. The query is first routed to one or both domain indexes, then rewritten into a standalone search query before retrieval and generation.}
+\caption{Single-turn pipeline. The user question and history are condensed into a standalone search query, routed to all indexes whose keyword-embedding cosine similarity passes the threshold (or the best single index if none do); score-filtered chunks from the selected indexes are concatenated into context, and the LLM produces a grounded response.}
 \label{fig:pipeline}
 \end{figure}
-
-\subsection*{Indexing}
-Each corpus was embedded with \texttt{BAAI/bge-base-en-v1.5} (batch size 32, L2-normalised) and stored in a FAISS \texttt{IndexFlatIP} index. Because embeddings are normalised, inner product equals cosine similarity, making retrieval scores directly interpretable as relevance confidence.
-
-\subsection*{Query Routing}
-A lightweight routing step selects which domain index to query. Both the incoming query and a fixed keyword description for each domain (\textit{"processor CPU cores threads clock speed gaming workloads"} for CPU; \textit{"graphics card GPU VRAM ray tracing frames rendering"} for GPU) are embedded with \texttt{all-MiniLM-L6-v2} (384-dim). The cosine similarity between query and each keyword centroid determines which index is queried. Any index scoring above 0.4 is included; if none pass, the highest-scoring index is used as a fallback.
-
-\subsection*{Query Rewriting}
-In multi-turn conversations, pronouns and ellipsis make queries ambiguous for retrieval (e.g.\ \textit{"how does it compare to the other one?"}). Before retrieval, Mistral-7B rewrites the user question into a standalone search query conditioned on the conversation history. Rewriting uses greedy decoding (temperature = 0, max 100 new tokens) to ensure deterministic, compact output.
-
-\subsection*{Retrieval and Generation}
-The rewritten query is embedded and the top $k=3$ chunks above a cosine similarity threshold of 0.5 are retrieved from each selected index. Retrieved chunks are injected into the prompt with inline citation instructions so the model attributes claims to numbered sources. Mistral-7B-Instruct-v0.3 generates the final response with temperature 0.7 and a maximum of 512 new tokens running in fp16 on CUDA. Up to 6 conversation turns (12 messages) are retained in context.
-
-\section*{Related work}
-RAG-based systems demonstrate that injecting retrieved passages substantially improves factual accuracy on knowledge-intensive tasks, yet performance drops when key facts are absent from the corpus \cite{lewis2020rag,izacard2021leveraging}. Instruction-tuned models offer conversational control but inherit the same grounding limitations without authoritative retrieval \cite{ouyang2022training}. Query rewriting has been shown to significantly improve multi-turn retrieval quality by resolving coreferences before the search step \cite{ma2023queryrewrite}. Tools like PCPartPicker \cite{pcpartpicker2026compatibility} demonstrate reliable rule-based compatibility checking but lack conversational flexibility; our system trades deterministic rule coverage for broader, review-grounded recommendation quality.
-
+ 
+\textbf{1. Query rewriting.} The generation LLM is prompted with the conversation history and the new user message, and asked to emit a single standalone search query. Generation is deterministic (\texttt{temperature=0}, max 100 tokens). This step is what lets follow-ups like ``and how does it compare to the other one?'' actually retrieve useful chunks.
+ 
+\textbf{2. Routing.} Each retriever carries a fixed embedding of a short keyword description (e.g.\ for the CPU index: \emph{``processor CPU cores threads clock speed compute tasks gaming workloads''}). The user's rewritten query is embedded with \texttt{all-MiniLM-L6-v2} and cosine-compared against every retriever's keyword embedding. All retrievers scoring above a threshold (we use 0.4) are selected; if none pass, we fall back to the single best-scoring index so the pipeline always has some context to work with. This both filters out irrelevant indexes and naturally allows multi-index retrieval when a question genuinely spans categories (e.g.\ ``which CPU pairs well with an RTX 5070?'').
+ 
+\textbf{3. Retrieval.} Each selected retriever runs a top-$k$ search ($k\!=\!3$) over its FAISS index with the rewritten query, and discards results whose cosine similarity is below 0.5. Surviving chunks from all selected indexes are concatenated into the context block.
+ 
+\textbf{4. Generation.} The final prompt to the LLM is a system message defining the assistant's role and grounding rules, the prior conversation history (truncated to the last six turns), and a user turn that contains the retrieved context followed by the original question. The system prompt instructs the model to prefer the context, decline politely when context is irrelevant, and avoid speculating about specific parts.
+ 
+The retrievers themselves are deliberately uniform: a \texttt{RAGRetriever} just bundles a FAISS index, its metadata, an embedding model, and a keyword vector. Adding, say, a motherboard or PSU index is purely a configuration change.
 
 
 \section*{Results}
-
-We evaluated the assistant qualitatively across three query types: specific product comparisons, budget recommendation requests, and out-of-scope or out-of-corpus questions.
-
-\textbf{Works well.} When a reviewed product is queried directly (e.g. \textit{"Is the Ryzen 7 9800X3D worth it for gaming?"}), the system reliably retrieves the relevant review sections and generates accurate, cited answers. Multi-turn follow-ups (e.g. \textit{"How does it compare thermally?"}) resolve correctly via query rewriting — without it, naive retrieval on the anaphoric follow-up returns irrelevant chunks.
-
-\textbf{Degrades gracefully.} For budget queries (e.g. \textit{"Best GPU under \$300"}), the system retrieves buyer-guide sections with ranked recommendations and scores them against the budget. The answers are useful but less precise, as prices in reviews can be outdated.
-
-\textbf{Fails.} The system cannot answer questions about products absent from the corpus (e.g. unreleased or niche GPUs) — it correctly refuses rather than hallucinating, but this is a hard coverage limit. Routing also occasionally misfires: queries phrased as general computing questions (e.g. \textit{"Will 16GB RAM bottleneck performance?"}) are sometimes routed to both indexes, inflating the context and diluting relevance.
+ 
+Evaluation was qualitative. We compared the system against the same LLM using a similar prompt with no retrieval, on a small set of representative questions covering pure spec lookups, side-by-side comparisons, recommendation requests, and out-of-scope queries.
+ 
+The routing layer behaved as intended. Single-category questions reliably activated only one index, comparison questions involving both a CPU and a GPU activated both, and clearly off-topic questions (``what's the weather?'') landed below threshold and triggered the top-1 fallback, after which the min-similarity cutoff in the retriever returned no chunks and the assistant correctly declined to answer. Splitting the corpus into two indexes also clearly helped retrieval quality versus the V2 mixed index: spec questions returned spec chunks, recommendation questions returned review chunks.
+ 
+The weaker points were data and model size. Review coverage was thin in several places, and answers there occasionally fell back to vague generalities because no good chunk was available. The 7B generation model also sometimes underused the context, restating the question rather than synthesising across multiple retrieved snippets. Both are addressable -- more scraping for the former, a larger or better-instruction-tuned model for the latter -- but were outside the scope of the seminar. Even so, against the no-RAG baseline the difference was substantial: the baseline confidently invented part numbers and incorrect specifications, while the RAG version stayed grounded and was willing to say it did not know.
 
 Formal automatic evaluation (e.g. Recall@k on a held-out query set) is left for future work given the absence of a labelled QA benchmark for this narrow domain.
+
+\section{Conclusion}
+ 
+We built a small conversational PC-building assistant around a routed multi-index RAG architecture. The combination of cheap embedding-based routing, query rewriting for conversational use, and a clean separation between retrievers and the generation model worked well and is easy to extend. The remaining quality ceiling is set mostly by the source data and by the size of the generation model rather than by the retrieval design itself.
 
 %----------------------------------------------------------------------------------------
 %	REFERENCE LIST

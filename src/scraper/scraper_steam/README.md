@@ -1,11 +1,11 @@
-# SteamDB Scraper (`steamdb_scraper`)
+# Steam Scraper (`scraper_steam`)
 
 Fetches the top games list from SteamDB and collects their minimum and recommended system requirements from the Steam Store API.
 
 ## Install
 
 ```bash
-cd src/steamdb
+cd src/scraper
 python -m venv .venv
 . .venv/bin/activate
 pip install -e .
@@ -17,19 +17,19 @@ playwright install chromium
 Full scrape — top 10,000 games with system requirements:
 
 ```bash
-steamdb-scraper scrape
+steam-scraper scrape
 ```
 
 Only dump the chart list, skip requirements:
 
 ```bash
-steamdb-scraper scrape --charts-only
+steam-scraper scrape --charts-only
 ```
 
 Parse from a locally saved SteamDB HTML file (avoids Playwright/Cloudflare):
 
 ```bash
-steamdb-scraper scrape --from-html steamdb_charts.html
+steam-scraper scrape --from-html steamdb_charts.html
 ```
 
 ## Options
