@@ -57,4 +57,4 @@ for playlist_url in playlists:
             print(f"Saved: {playlist_title}/{title}.txt")
         except Exception as e:
             print(f"Skipping {vid_id} ({title}): {e}")
-        time.sleep(1 + random.uniform(0, 8))
+        time.sleep(1 + random.uniform(0, 48))
