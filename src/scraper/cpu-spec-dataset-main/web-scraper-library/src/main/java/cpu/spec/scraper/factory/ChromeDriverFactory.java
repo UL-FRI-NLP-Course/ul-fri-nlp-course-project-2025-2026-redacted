@@ -1,6 +1,5 @@
 package cpu.spec.scraper.factory;
 
-import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 
@@ -19,7 +18,7 @@ public abstract class ChromeDriverFactory {
     public static ChromeDriver getDriver() {
         if (setup) {
             LOGGER.info("Start chrome driver setup.");
-            WebDriverManager.chromedriver().setup();
+            System.setProperty("webdriver.chrome.driver", "/usr/bin/chromedriver");
             setup = false;
             LOGGER.info("Finished chrome driver setup.");
         }

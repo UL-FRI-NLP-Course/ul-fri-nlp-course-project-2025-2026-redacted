@@ -64,19 +64,16 @@ public abstract class GpuSpecificationParser {
             specification.category = categoryElement.ownText().trim();
         }
 
-        Element g3dLabelElement = page.selectFirst("div:containsOwn(G3D Mark)");
-        if (g3dLabelElement != null) {
-            Element g3dValueElement = g3dLabelElement.nextElementSibling();
-            if (g3dValueElement != null) {
-                specification.g3dMark = g3dValueElement.text().trim();
-            }
+        Element g3dValueElement = page.selectFirst("div.right-desc > span");
+        if (g3dValueElement != null) {
+            specification.g3dMark = g3dValueElement.text().trim().replace(",", "");
         }
 
-        Element g2dLabelElement = page.selectFirst("div:containsOwn(G2D Mark)");
+        Element g2dLabelElement = page.selectFirst("strong:containsOwn(Average G2D Mark)");
         if (g2dLabelElement != null) {
-            Element g2dValueElement = g2dLabelElement.nextElementSibling();
-            if (g2dValueElement != null) {
-                specification.g2dMark = g2dValueElement.text().trim();
+            String g2dText = g2dLabelElement.parent().ownText().trim().replace(",", "");
+            if (!g2dText.isEmpty()) {
+                specification.g2dMark = g2dText;
             }
         }
 
